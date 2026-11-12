@@ -1,0 +1,18 @@
+# Owners are requested automatically for review (README.md, "Tasks > Owners").
+# TODO(OPS-01): replace the placeholder handles with real GitHub usernames.
+# The last matching line wins.
+
+*                                @toye
+/src/ai/                         @goodness
+/src/modules/lessons/            @goodness
+/src/modules/quizzes/            @goodness
+/src/modules/resources/          @goodness
+/src/modules/documents/          @goodness
+/src/modules/assessments/        @goodness @toye
+/src/modules/batches/            @goodness @toye
+/src/modules/videos/             @goodness
+/src/modules/simplifier/         @goodness
+/src/modules/usage/              @oba @toye
+/src/jobs/workers/bulkMarking.ts @goodness
+/src/modules/billing/            @toye @tech-lead
+/openapi/openapi.json            @oba @toye

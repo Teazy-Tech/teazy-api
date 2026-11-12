@@ -1,0 +1,19 @@
+# Local development services. Start with: docker compose up -d
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: teazy
+      POSTGRES_PASSWORD: teazy
+      POSTGRES_DB: teazy
+    ports:
+      - "5432:5432"
+    volumes:
+      - teazy-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teazy"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  teazy-db:

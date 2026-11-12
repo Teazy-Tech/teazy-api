@@ -1,0 +1,33 @@
+name: Task
+description: A planned task from README.md (Tasks)
+title: "[TASK-ID] Short title"
+labels: ["task"]
+body:
+  - type: input
+    id: task-id
+    attributes:
+      label: Task ID
+      placeholder: API-06
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+  - type: input
+    id: week
+    attributes:
+      label: Week and size
+      placeholder: "Wk 3–4, L (4 days)"
+  - type: textarea
+    id: depends
+    attributes:
+      label: Depends on
+      placeholder: "API-02, API-03"
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Copied from README.md (Tasks)
+    validations:
+      required: true
