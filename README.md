@@ -338,6 +338,31 @@ Update the **Status** column as modules are built.
 3. Read the task row, §2 of this README, and the module's row in [Planned modules](#planned-modules).
 4. If the task adds or changes an endpoint, open the contract PR first.
 
+### Where does my task go?
+
+Find your task ID in the folder tree in [§6](#6-modules-and-folders): every planned folder is labelled with the task that fills it. For a module task (API-06, API-10, API-11, API-13–16, AI-10–17), the rule is:
+
+- Everything goes in `src/modules/<name>/`, using the [module template](#6-modules-and-folders). The endpoints are in [Planned modules](#planned-modules).
+- Tables go in `src/db/schema/<area>.ts`, followed by `pnpm db:generate` (never edit `migrations/`).
+- The only shared line you add is the router registration in `src/modules/index.ts`, in its own commit.
+- AI calls go through `src/ai/gateway.ts` (`generateStructured` with the module's Zod output schema), never a vendor SDK.
+- Long work (bulk marking, video, images) is a job: the module enqueues it, a thin `src/jobs/workers/<name>.ts` calls the module's service, and the client polls `GET /jobs/:id`.
+- Isolation test: `test/integration/<name>.isolation.test.ts` (user A can't read or change user B's rows).
+
+API-06 (`me` + `curriculum`) is the reference module. Once it's approved, copy its structure exactly.
+
+### Walk-through for new interns (OPS-03)
+
+The rules in this README are done when each intern can answer these from the README alone. The facilitator runs it once with each person and ticks their name in the OPS-03 card.
+
+1. You're given API-14 (folders). Which files do you create, and which existing file do you touch?
+2. Your service needs the current user's id. Where does it come from, and where must it never come from?
+3. Where does SQL go? Can a controller import Drizzle?
+4. The quizzes module needs a function from the curriculum module. How may it import it?
+5. A handler fails after the quota was reserved. What must happen to the reservation?
+6. You changed a response field name. What do you run, who reviews, and what does CI check?
+7. The AI provider times out. What does the client receive, and what must it never see?
+
 ### Contract PRs
 
 The frontend generates its API hooks from `openapi/openapi.json`, so the contract changes first and on its own.
@@ -379,7 +404,7 @@ Each decision needs tech-lead approval. Status: **Proposed** until sign-off (pla
 | D6  | **OpenAPI is the contract** between the repos: OpenAPI 3.1 generated from Zod into `openapi/openapi.json`, committed; the web app generates RTK Query hooks from it; Prism serves mocks | Frontend and backend build in parallel against one written agreement            | Shared TypeScript package (impossible across two repos)                                                                     | Contract PRs first, reviewed by the consumer; CI fails on a stale `openapi.json`; `openapi-diff` flags breaking changes                                  |
 | D8  | **TypeScript 5.9** (not 7.x)                                                                                                                                                            | `typescript-eslint` supports only TypeScript < 6.1                              | TypeScript 7 (breaks linting)                                                                                               | Upgrade when `typescript-eslint` supports it                                                                                                             |
 
-D2, D4, D5 and D7 (frontend decisions) are recorded in `teazy-web`.
+D2, D4, D5, D7 and D9–D11 (frontend decisions) are recorded in `teazy-web`. Numbers are shared across both repos: a new decision takes the next free number in either README.
 
 ---
 
@@ -450,11 +475,11 @@ Still open from setup: protect `main`, real CODEOWNERS handles, Projects board (
 
 ### Oba: work in this repository
 
-| ID         | Task                                                                  | Wk  | Size | Depends on | Acceptance criteria                                                                                                                                 |
-| ---------- | --------------------------------------------------------------------- | --- | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **OPS-03** | Rules and contributing docs for both repos; decision records D1–D6    | 1   | M    | OPS-01     | An intern with only this README and a task ID puts files in the right place. _Drafted; finish = walk-through with each intern + tech-lead approval_ |
-| **API-11** | `usage` module: `GET /usage` with every monthly limit and amount used | 5   | S    | API-06     | Numbers match the legacy RPCs for the same user on staging                                                                                          |
-| —          | Review every contract PR and `openapi.json` change as the consumer    | all | —    | —          | —                                                                                                                                                   |
+| ID         | Task                                                                  | Wk  | Size | Depends on | Acceptance criteria                                                                                                                                                                                             |
+| ---------- | --------------------------------------------------------------------- | --- | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OPS-03** | Rules and contributing docs for both repos; decision records D1–D6    | 1   | M    | OPS-01     | An intern with only this README and a task ID puts files in the right place. _Docs done (rules §2, task lookup + walk-through §7, decisions §8); remaining: walk-through with each intern + tech-lead approval_ |
+| **API-11** | `usage` module: `GET /usage` with every monthly limit and amount used | 5   | S    | API-06     | Numbers match the legacy RPCs for the same user on staging                                                                                                                                                      |
+| —          | Review every contract PR and `openapi.json` change as the consumer    | all | —    | —          | —                                                                                                                                                                                                               |
 
 If the team falls behind, scope moves out in this order: videos (AI-17), admin (API-16 / WEB-19), simplifier (AI-16). The cut-over depends on none of them.
 
