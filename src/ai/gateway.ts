@@ -1,5 +1,7 @@
+import type { z } from "zod";
 import { AiError, toAiError, type AttemptFailure } from "./errors.js";
 import { AI_ROUTES, type AiRoutes, type AiTask, type TaskRoute } from "./routes.config.js";
+import { parseStructured, retryInstruction, toProviderSchema, type Repair } from "./structured.js";
 import type {
   GenerateRequest,
   LlmProvider,
@@ -44,6 +46,22 @@ export interface AttemptEvent {
   status?: number;
 }
 
+export interface StructuredOptions extends GenerateOptions {
+  /**
+   * Task-specific fix-ups applied to the parsed JSON before validation, for
+   * example normalising a worksheet. Must be pure.
+   */
+  repair?: Repair;
+}
+
+export interface StructuredResult<T> {
+  data: T;
+  /** The call that produced valid output. */
+  result: GenerateResult;
+  /** True when the first reply was invalid and the retry fixed it. */
+  retried: boolean;
+}
+
 export interface AiGatewayDeps {
   providers: Partial<Record<ProviderName, LlmProvider>>;
   routes?: AiRoutes;
@@ -57,6 +75,18 @@ export interface AiGateway {
     request: GenerateRequest,
     options?: GenerateOptions,
   ): Promise<GenerateResult>;
+  /**
+   * Asks for JSON matching `schema`, then validates, repairs and retries once
+   * with the validation errors attached. Each call falls back to the second
+   * model if the first one fails. Throws INVALID_OUTPUT if the retry is still
+   * invalid.
+   */
+  generateStructured<T>(
+    task: AiTask,
+    schema: z.ZodType<T>,
+    request: GenerateRequest,
+    options?: StructuredOptions,
+  ): Promise<StructuredResult<T>>;
 }
 
 function abortReason(signal: AbortSignal): Promise<never> {
@@ -163,5 +193,42 @@ export function createAiGateway(deps: AiGatewayDeps): AiGateway {
     });
   }
 
-  return { generate };
+  async function generateStructured<T>(
+    task: AiTask,
+    schema: z.ZodType<T>,
+    request: GenerateRequest,
+    options: StructuredOptions = {},
+  ): Promise<StructuredResult<T>> {
+    const jsonRequest: GenerateRequest = {
+      ...request,
+      responseFormat: { type: "json", name: task, schema: toProviderSchema(schema) },
+    };
+
+    const first = await generate(task, jsonRequest, options);
+    const firstOutcome = parseStructured(first.text, schema, options.repair);
+    if (firstOutcome.ok) return { data: firstOutcome.data, result: first, retried: false };
+
+    const retry = await generate(
+      task,
+      {
+        ...jsonRequest,
+        messages: [
+          ...jsonRequest.messages,
+          { role: "assistant", content: first.text },
+          { role: "user", content: retryInstruction(firstOutcome.issues) },
+        ],
+      },
+      options,
+    );
+    const retryOutcome = parseStructured(retry.text, schema, options.repair);
+    if (retryOutcome.ok) return { data: retryOutcome.data, result: retry, retried: true };
+
+    throw new AiError("INVALID_OUTPUT", `${task} output failed validation after one retry`, {
+      provider: retry.provider,
+      model: retry.model,
+      issues: retryOutcome.issues,
+    });
+  }
+
+  return { generate, generateStructured };
 }
