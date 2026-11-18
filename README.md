@@ -34,6 +34,18 @@ docker compose up -d db         # local Postgres 17 on :5432
 pnpm dev                        # http://localhost:4000/healthz
 ```
 
+### Staging database
+
+The staging Supabase project (`vxtnhkgoesmhrzpcznyj`) holds the production schema and synthetic seed data only — no real student data. Use its **Session pooler** string on port `5432` for `DATABASE_URL`. Connection strings, keys and the synthetic demo password are in the team password manager (OPS-02).
+
+```sh
+# Put the staging DATABASE_URL and SEED_PASSWORD in .env, then:
+pnpm db:seed:staging            # idempotent; safe to re-run
+psql "$DATABASE_URL" -c "select email from auth.users where email like '%@staging.teazy.test' order by 1;"
+```
+
+Demo accounts are `admin@staging.teazy.test`, `standard@staging.teazy.test`, `pro@staging.teazy.test` and `free@staging.teazy.test`; they all share the synthetic password from the password manager.
+
 | Command                                                     | What it does                                                          |
 | ----------------------------------------------------------- | --------------------------------------------------------------------- |
 | `pnpm dev`                                                  | API with reload (`tsx watch`, loads `.env`)                           |
@@ -46,6 +58,7 @@ pnpm dev                        # http://localhost:4000/healthz
 | `pnpm openapi`                                              | Regenerates `openapi/openapi.json` from the Zod schemas (from API-05) |
 | `pnpm mock`                                                 | Prism mock server on :4010 from `openapi.json` (from API-05)          |
 | `pnpm db:generate` / `db:migrate` / `db:pull` / `db:studio` | drizzle-kit                                                           |
+| `pnpm db:seed:staging`                                      | Applies the synthetic staging seed (requires `SEED_PASSWORD`)         |
 | `pnpm format`                                               | Prettier                                                              |
 | `pnpm check`                                                | lint + typecheck + test + build, the same as CI                       |
 
@@ -405,14 +418,14 @@ D2, D4, D5 and D7 (frontend decisions) are recorded in `teazy-web`.
 - [x] Folder skeleton (§6), `Dockerfile`, `docker-compose.yml`, `.env.example`, `drizzle.config.ts`
 - [x] CI workflow, PR template with the Definition of Done, issue templates, CODEOWNERS (placeholder handles)
 
-Still open from setup: protect `main`, real CODEOWNERS handles, Projects board (OPS-01); staging Supabase project and secrets (OPS-02).
+Still open from setup: protect `main`, real CODEOWNERS handles, Projects board (OPS-01). OPS-02 is done — the staging Supabase project (`vxtnhkgoesmhrzpcznyj`) has the production schema and synthetic seed data only, and secrets are in the team password manager.
 
 ### Toye: API platform and business modules
 
 | ID         | Task                                                                                                                                                                                        | Wk  | Size | Depends on             | Acceptance criteria                                                                                                                                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OPS-01** | Repos, protected `main`, CODEOWNERS, PR + issue templates, Projects board with every task ID                                                                                                | 1   | M    | Tech-lead org access   | Direct pushes to `main` rejected; PR template has the DoD; board has all tasks with owners                                                                                                                                                                                  |
-| **OPS-02** | Staging Supabase project with production **schema only** + seed data; secrets via password manager                                                                                          | 1   | M    | Tech-lead access       | Every intern runs the API locally against local Postgres and the web app against staging auth; no real student data in staging                                                                                                                                              |
+| **OPS-02** | Staging Supabase project with production **schema only** + seed data; secrets via password manager                                                                                          | 1   | M    | Tech-lead access       | API runs locally against local Postgres; staging (`vxtnhkgoesmhrzpcznyj`) has the production schema + synthetic seed only; secrets in the password manager. _Done._                                                                                                         |
 | **API-01** | Scaffold: `config/env.ts`, pino logger, `/readyz`, **basic CI** green                                                                                                                       | 1   | M    | OPS-01                 | `pnpm dev/test/lint/typecheck/build` work; importing `modules/*` from `core/` fails lint; CI runs on PRs. _Toolchain, lint rules, Dockerfile, `/healthz` and CI workflow done in Phase 0; remaining: `config/env.ts`, `core/logger.ts`, `/readyz`, confirming CI on GitHub_ |
 | **API-03** | DB layer: `drizzle-kit pull` from staging; baseline migration `0000`; `db/client.ts`; repository pattern example; Testcontainers Postgres                                                   | 1–2 | M    | OPS-02, API-01         | Schema matches staging; migrations run on an empty database; one integration test passes in CI                                                                                                                                                                              |
 | **API-02** | Middleware chain (§4); `AppError` catalogue; response envelope; `asyncHandler`                                                                                                              | 2   | L    | API-01                 | Unit test per middleware; bad JWT → 401 envelope; Zod failure → 400 with field errors; no stack traces leak; every log line has a `requestId`                                                                                                                               |
