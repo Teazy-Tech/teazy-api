@@ -1,0 +1,38 @@
+# src/ai
+
+Owner: Goodness. Every AI call in the API goes through `gateway.ts` (README rule 6).
+
+| File                   | Task  | What it is                                                                                |
+| ---------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| `gateway.ts`           | AI-01 | `createAiGateway({ providers })` → `generate(task, request)`; primary, then fallback      |
+| `routes.config.ts`     | AI-01 | Task → primary and fallback model, output token budget, timeout per attempt               |
+| `types.ts`             | AI-01 | Vendor-neutral messages, requests, responses and the `LlmProvider` interface              |
+| `errors.ts`            | AI-01 | `AiError` with a typed `code`; `toAiError` maps SDK errors by HTTP status                 |
+| `providers/`           | AI-01 | `gemini.ts`, `openai.ts` (the only files that import vendor SDKs), `fake.ts` for tests    |
+| `prompts/<task>/vN.md` | AI-00 | Versioned prompts; `prompts/README.md` is the inventory of legacy prompts and model calls |
+| `evals/cases/`         | AI-00 | 20 to 30 synthetic cases per task for AI-04                                               |
+
+## Using the gateway
+
+```ts
+const gateway = createAiGateway({
+  providers: createProviders({ geminiApiKey, openaiApiKey }), // keys from config/env.ts
+  onAttempt: (event) => logger.info(event, "ai attempt"), // no prompt or output in the event
+});
+
+const result = await gateway.generate("quiz", {
+  messages: [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ],
+});
+// result.text, result.provider, result.model, result.usedFallback, result.usage
+```
+
+## Failure behaviour
+
+- Each attempt has the route's `timeoutMs`. A provider that ignores the abort signal still times out.
+- Any failure of the primary (timeout, 429, 5xx, bad key, empty or blocked answer, provider not configured) moves on to the fallback.
+- If the caller cancels (`signal`), the gateway stops and does not try the fallback.
+- If both models fail, `generate` throws `AiError` with code `PROVIDER_UNAVAILABLE` and the list of failed attempts. Map it to the API error `PROVIDER_UNAVAILABLE` once `core/errors.ts` exists (API-02).
+- Error messages and attempt events never contain prompts, student text, model output or keys.
