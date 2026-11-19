@@ -22,6 +22,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CORS_ORIGINS: csvToArray,
   DATABASE_URL: postgresUrl,
+  TEST_DATABASE_URL: postgresUrl.optional(),
   SEED_PASSWORD: z.string().min(1).optional(),
   SUPABASE_URL: z.url(),
   SUPABASE_JWKS_URL: z.url(),
